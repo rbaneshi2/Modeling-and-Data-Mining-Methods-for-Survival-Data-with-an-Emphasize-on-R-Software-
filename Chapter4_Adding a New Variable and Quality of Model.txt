@@ -1,0 +1,88 @@
+########### Chapter 4
+library (survival)
+Boot.sample <- 1000 # Bootstrap Sample size
+Coefficient <- matrix (nrow=Boot.sample,ncol=3)
+SE.Coef <- matrix (nrow=Boot.sample,ncol=3)
+P.Value <- matrix (nrow=Boot.sample,ncol=3)
+data <- lung
+for ( i in 1 : Boot.sample){
+data.boot <- data[ sample( 1 : nrow ( data ) , replace = T ) , ]
+fit <- coxph ( Surv ( data.boot$time , data.boot$status ) ~ data.boot$age+data.boot$sex + data.boot$ph.ecog , data=data.boot)
+Coefficient [ i, ] <- fit$coefficients 
+SE.Coef [ i, ] <- sqrt(diag(fit$var)) 
+wald_test <- Coefficient [ i ,] / SE.Coef [ i, ] 
+P.Value [ i, ] <- 2 * ( 1 - pnorm ( abs ( wald_test ), 0 , 1 ) ) 
+}
+Significancy.age <- ifelse ( P.Value [,1] < 0.05 , 1 , 0 ) 
+sum ( Significancy.age ) / Boot.sample 
+
+Significancy.sex <- ifelse ( P.Value [,2] < 0.05 , 1 , 0 ) 
+sum ( Significancy.sex ) / Boot.sample 
+## [1] 0.922
+Significancy.ph.ecog <- ifelse ( P.Value [,3] < 0.05, 1 , 0 ) 
+sum ( Significancy.ph.ecog ) / Boot.sample 
+
+
+head(lung)
+attach(lung)
+age.s<- (age-mean(age))/sd(age)
+sex.s<- (sex-mean(sex))/sd(sex)
+ph.ecog.s<- (ph.ecog-mean(ph.ecog,na.rm=TRUE))/sd(ph.ecog,na.rm=TRUE)
+lfit.s <- coxph (Surv(lung$time, lung$status) ~ age.s + sex.s+ ph.ecog.s )
+summary(lfit.s)
+
+######################################
+##fitting the cox model
+lfit <- coxph (Surv(time, status) ~ age + sex + ph.ecog, data=lung)
+Lfull<- lfit$loglik
+##########################################
+lReduce3 <- coxph (Surv(time, status) ~ sex + age, data=lung)
+LReduce3<- lReduce3$loglik
+LRT3<- 2*Lfull[2]-2*LReduce3[2]
+LRT3
+
+#####################################
+
+##fitting the cox model
+lfit <- coxph (Surv(time, status) ~ age + sex + ph.ecog, data=lung)
+summary (lfit)
+##########################################
+lReduce3 <- coxph (Surv(time, status) ~ sex + age, data=lung)
+summary (lReduce3)
+#############################################################
+
+
+
+
+##################################################################33
+attach(lung)
+##fitting the cox model
+lfit <- coxph (Surv(time, status) ~ age + sex + ph.ecog, data=lung)
+Tevent<- as.vector(unclass(table(status)))
+##calculation of risk score
+riskscore<- lfit$coefficients[1]*age+lfit$coefficients[2]*sex+lfit$coefficients[3]*ph.ecog
+q <- quantile (riskscore,c(.33,.66),na.rm=TRUE)
+q1 <- unclass(as.vector(q))
+datanew <- cbind(lung,riskscore)
+##create 3 riskscore categories
+attach(datanew)
+########################################
+datanew$riskscore1[riskscore < q1 [1]] <- "low"
+datanew$riskscore1[riskscore > q1 [1] & riskscore <= q1 [2]] <- "intermediate"
+datanew$riskscore1[riskscore > q1 [2]] <- "high"
+##################################
+lReduce3 <- coxph (Surv(time, status) ~ sex + age, data=lung)
+##calculation of risk score
+riskscore3<- lReduce3$coefficients[1]*sex+lReduce3$coefficients[2]*age
+q <- quantile (riskscore3,c(.33,.66),na.rm=TRUE)
+q3 <- unclass(as.vector(q))
+datanew <- cbind(datanew,riskscore3)
+##create 3 riskscore categories
+attach(datanew)
+datanew$riskscore4[riskscore3 < q3 [1]] <- "low"
+datanew$riskscore4[riskscore3 >= q3 [1] & riskscore3 < q3 [2]] <- "intermediate"
+datanew$riskscore4[riskscore3 >= q3 [2]] <- "high"
+T3 <- table(datanew$riskscore1,datanew$riskscore4,status)
+NRI.3<- (((T3[2,1,2]+T3[3,1,2]+T3[3,2,2])/Tevent[2])-((T3[1,2,2]+T3[1,3,2]+T3[2,3,2])/Tevent[2]))-
+(((T3[2,1,1]+T3[3,1,1]+T3[3,2,1])/Tevent[1])-((T3[1,2,1]+T3[1,3,1]+T3[2,3,1])/Tevent[1]))
+NRI.3

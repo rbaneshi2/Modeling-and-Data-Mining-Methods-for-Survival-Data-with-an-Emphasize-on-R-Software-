@@ -1,0 +1,59 @@
+library(survival)
+library(spBayesSurv)
+library(coda)
+
+data(ovarian)
+attach(ovarian)
+names(ovarian)
+dim(ovarian)
+
+res1 = indeptCoxph(formula = Surv(futime, fustat)~age+resid.ds+rx+ecog.ps, data=ovarian ,
+prior= list(beta0 =c(1,1,-2,-1),S0 =diag(100, 4)),mcmc=list(nburn=1000,nsave=10000,nskip=20,ndisplay=5000))
+
+par(mfrow = c(2,2))
+traceplot(mcmc(res1$beta[1,]), main=" age")
+traceplot(mcmc(res1$beta[2,]), main=" resid.ds")
+traceplot(mcmc(res1$beta[3,]), main=" rx")
+traceplot(mcmc(res1$beta[4,]), main=" ecog.ps")
+
+sfit1=summary(res1)
+sfit1
+
+res2=survregbayes(formula = Surv(futime, fustat)~age+resid.ds+rx+ecog.ps, data=ovarian ,
+survmodel="AFT",dist="weibull",prior=list(beta0 =c(1,1,-2,-1),S0=diag(100,4),theta0 =rep(1,2),V0 =diag(10,2)),
+mcmc= list(nburn=1000,nsave=10000,nskip=20,ndisplay=5000))
+par(mfrow = c(2,2))
+traceplot(mcmc(res2$beta[1,]), main=" age")
+traceplot(mcmc(res2$beta[2,]), main=" resid.ds")
+traceplot(mcmc(res2$beta[3,]), main=" rx")
+traceplot(mcmc(res2$beta[4,]), main=" ecog.ps")
+
+sfit2=summary(res2)
+sfit2
+
+res3=survregbayes(formula = Surv(futime,fustat)~age+resid.ds+rx+ecog.ps, data=ovarian ,
+survmodel="PO",dist="logistic",prior=list(beta0=c(1,1,-2,-1),S0=diag(100,4),theta0=rep(1,2),V0 =diag(10, 2)),
+mcmc=list(nburn=1000,nsave=10000,nskip=20,ndisplay=5000))
+
+par(mfrow = c(2,2))
+traceplot(mcmc(res3$beta[1,]), main=" age")
+traceplot(mcmc(res3$beta[2,]), main=" resid.ds")
+traceplot(mcmc(res3$beta[3,]), main=" rx")
+traceplot(mcmc(res3$beta[4,]), main=" ecog.ps")
+
+sfit3=summary(res3)
+sfit3
+
+res4=survregbayes(formula = Surv(futime, fustat)~age+resid.ds+rx+ecog.ps, data=ovarian ,
+survmodel="AFT", dist="lognormal",prior=list(beta0=c(1,1,-2,-1),S0=diag(100,4), theta0=rep(1,2),V0=diag(10, 2)),
+mcmc= list(nburn=1000, nsave=10000, nskip=20, ndisplay=5000))
+
+par(mfrow = c(2,2))
+traceplot(mcmc(res4$beta[1,]), main=" age")
+traceplot(mcmc(res4$beta[2,]), main=" resid.ds")
+traceplot(mcmc(res4$beta[3,]), main=" rx")
+traceplot(mcmc(res4$beta[4,]), main=" ecog.ps")
+
+sfit4=summary(res4)
+sfit4
+

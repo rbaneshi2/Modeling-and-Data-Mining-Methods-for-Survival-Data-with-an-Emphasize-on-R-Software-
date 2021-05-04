@@ -1,0 +1,64 @@
+library(glmnet)
+library(penalized)
+data(nki70)
+dim(nki70)
+attach(nki70)
+names(nki70)
+head(nki70)
+
+x=model.matrix(Surv(time,event)~.,nki70)[,-c(1)]
+dim(x)
+
+grid=10^seq(3,-2,length=50)
+ridge.fit1=glmnet(x,Surv(time,event),alpha=0,lambda=grid,family="cox")
+plot(ridge.fit1, xvar="lambda", label=TRUE)
+
+set.seed(1)
+cv.fit2=cv.glmnet(x,Surv(time,event),alpha=0,family="cox")
+plot(cv.fit2)
+bestlam=cv.fit2$lambda.min
+bestlam
+
+ridge.fit3=glmnet(x,Surv(time,event),alpha=0,lambda=bestlam,family="cox")
+coef (ridge.fit3)
+
+
+...................
+
+lasso.fit1=glmnet(x,Surv(time,event),alpha=1,lambda=grid,family="cox")
+plot(lasso.fit1, xvar="lambda", label=TRUE, xlim=c(-4.8, 0))
+
+set.seed(1)
+cv.fit2=cv.glmnet(x,Surv(time,event),alpha=1,family="cox")
+bestlam1=cv.fit2$lambda.min
+bestlam1
+plot(cv.fit2)
+
+lasso.fit3=glmnet(x,Surv(time,event),alpha=1,lambda=bestlam1,family="cox")
+coef (lasso.fit3)
+
+
+bestlam2=rep(NA,20)
+for(i in 1:20){
+  fit=cv.glmnet(x,Surv(time,event),alpha=1,family="cox")
+  bestlam2[i]=fit$lambda.min
+}
+round(bestlam2,3)
+mean(bestlam2)
+median(bestlam2)
+
+set.seed(1)
+y=rnorm(144)
+train=sample(1:nrow(x),nrow(x)*.5)
+test=(-train)
+cv.fit4=cv.glmnet(x[train,],y [train], alpha=1)
+plot(cv.fit4)
+bestlam3=cv.fit4$lambda.min
+bestlam3
+
+lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=bestlam3)
+lasso.pred=predict(lasso.mod,s=bestlam3,newx=x[test,],alpha=1)
+mean((lasso.pred-y[test])^2)
+
+
+

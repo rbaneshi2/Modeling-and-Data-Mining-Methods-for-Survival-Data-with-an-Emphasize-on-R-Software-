@@ -1,0 +1,48 @@
+##### Chapter 5
+attach(mtcars)
+names ( mtcars )
+head ( mtcars )
+
+data <- as.matrix ( cbind ( mtcars$mpg , mtcars$hp ) )
+# Calculation of correlation coefficient
+cor ( data , use="complete.obs", method="pearson" )[1,2]
+
+Boot.sample <- 1000 
+Correlation <- c()
+for ( i in 1 : Boot.sample){
+data.boot <- data [ sample( 1 : nrow ( data ) , replace = T ) , ]
+Correlation [i] <- cor ( data.boot , use="complete.obs", method="pearson" )[1,2] 
+}
+
+# Calculation of quantiles as CI
+quantile( Correlation , c ( 0.025 , 0.975 ) )
+
+
+library(survival)
+data <- lung # Reading The data
+head (data)
+
+## Fitting the cox regression
+fit1 <- coxph ( Surv ( time , status ) ~ age ,data=data)
+summary(fit1)
+
+Boot.sample <- 1000 # Bootstrap Sample size
+Coefficient <- c()
+SE.Coef <- c()
+P.Value <- c()
+for (i in 1 : Boot.sample){
+# Providing the bootstrap sample with replacement
+data.boot <- data[ sample( 1 : nrow ( data ) , replace = T ) , ]
+fit <- coxph ( Surv ( data.boot$time , data.boot$status ) ~ data.boot$age , data=data.boot)
+Coefficient [ i ] <- fit$coefficients # coefficients
+SE.Coef [ i ] <- sqrt(diag(fit$var)) # standard error
+wald_test <- Coefficient [ i ] / SE.Coef [ i ] 
+P.Value [ i ] <- 2 * ( 1 - pnorm ( abs ( wald_test ), 0 , 1 ) ) 
+}
+Significancy <- ifelse ( P.Value < 0.05 , 1 , 0 ) 
+sum ( Significancy ) / Boot.sample # Calculation of significant percent
+mean ( Coefficient )
+
+hist(Coefficient , breaks=10)
+# Calculation of quantiles
+quantile( age.coef , c( 0.025 , 0.5 , 0.975 ) )

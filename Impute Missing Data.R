@@ -1,0 +1,84 @@
+library(copula)
+N=100
+simulWeib <- function(N, lambda, rho, beta, rateC)
+{
+  myCop <- normalCopula(param=c(0.2,0.3,0.5,0.4,0,0.1), dim = 4, dispstr = "un")
+  myMvd <- mvdc(copula=myCop, margins=c("binom", "norm", "norm", "norm"),
+                paramMargins=list(list(size = 1 , prob = 0.5),
+                                  list(mean=2, sd=0.5),list(mean=40, sd=5),list(mean=10, sd=2)))
+  Z1=rMvdc(100, mvdc = myMvd)                  
+  colnames(Z1) <- c("X1", "X2","X3","X4")
+  x=cbind(Z1)
+  v <- runif(n=N)
+  Tlat <- (- log(v) / (lambda * exp(x %*% beta)))^(1 / rho)
+  C <- rexp(n=N, rate=rateC)
+  t0=runif(N,0,5)
+  time <- (pmin(Tlat, C))
+  t=ifelse(round(time)==0,time + t0,time)
+  status <- as.numeric(Tlat <= C)
+  data.frame(id=1:N,
+             time=t,
+             status=status,
+             x=x)
+}
+data <- simulWeib(N=100, lambda=0.01, rho=0.6, beta=c(0.3,0.2,0.03,0.1), rateC=0.3)
+
+library(survival)
+(models1 <- with(data,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+
+set.seed(50)
+nRows=100
+data[sample(1:nRows,nRows/10),5]<-NA
+
+
+(models1 <- with(data,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+#or
+data1=na.omit(data)
+(models1 <- with(data1,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+
+#or 
+
+data1=na.omit(data)
+(models1 <- with(data1,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+
+library(Hmisc)
+x.x2new<-impute(data$x.X2,mean)
+(models1 <- with(data,coxph(Surv(time, status) ~ x.X1 +  x.x2new+ x.X3+x.X4)))
+
+
+library(HotDeckImputation)
+data3=impute.NN_HD(DATA=data,distance="man", weights="var")
+library(survival)
+(models2 <- with(data3,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+library(VIM)
+data4<- regressionImp(x.X2~x.X1 + x.X3 +x.X4,data=data)
+(models3 <- with(data4,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+
+
+
+data=as.matrix(data)
+library(mice)
+imppmm <- mice(data, method = "pmm", m = 5, seed = 100, print = FALSE)
+(models1 <- with(imp,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+(summary(pool(models1)))
+
+library(mice)
+imp <- mice(data, method = "mean", m = 1)
+data2=complete(imp)
+library(survival)
+(models1 <- with(data2,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4)))
+
+library(mice)
+library(survival)
+im <- mice(data, method = "cart", m = 5, seed = 100)
+summary(pool(m <- with(im,coxph(Surv(time, status) ~ x.X1 + x.X2+ x.X3 +x.X4))))
+
+
+
+
+
+
+
+
+
+

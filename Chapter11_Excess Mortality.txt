@@ -1,0 +1,185 @@
+####################################################chapter 11.relative survival################
+library(readxl)
+#change the directory(pathfile) to your new directory
+lifetable <- read_excel("~/lifetable.xlsx")
+View(lifetable)
+lifetable <- read_excel("~/sick.xlsx")
+View(sick)
+
+
+
+lifetable[1:3,]
+lifetable[118:119,]
+sick[22:23,]
+sick[1:2,]
+
+
+sick<-data.frame(sick)
+lifetable<-data.frame(lifetable)
+library (survival)
+library(survMisc)
+tendata=ten(Surv(sick$time, sick$cens),sick)
+tendata
+maxt=max(sick$time)
+mint=min(sick$time)
+tindex=c(mint:maxt)
+tindex
+k=length(tindex)
+d=rep(NA,k)
+for(i in 1:k)
+{
+  d[i]=tendata[tendata$t==tindex[i],2]
+  d[d=="numeric(0)"]=0
+  d=cbind(d) }
+c=rep(NA,dim(tendata)[1])
+for(i in 1:dim(tendata)[1]-1)
+{
+  c[i]=tendata$n[i]-tendata$e[i]-tendata$n[i+1]
+  c[dim(tendata)[1]]=tendata$n[dim(tendata)[1]]-tendata$e[dim(tendata)[1]]
+}
+c
+
+
+tencdata=cbind(tendata ,c)
+tencdata
+censor=rep(NA,k)
+for(i in 1:k)
+{
+  censor[i]=tencdata[tencdata$t==tindex[i],4]
+  censor[censor=="numeric(0)"]=0
+  censor=cbind(censor)
+}
+y=rep(NA,k)
+y[1]=tencdata$n[1]
+for(i in 2:k)
+{
+  y[i]=as.numeric(y[i-1])-as.numeric(d[i-1])-as.numeric(censor[i-1])
+}
+tdcy = data.frame(tindex, d, censor, y)
+tdcy
+
+obs.h=as.numeric(tdcy$d)/as.numeric(tdcy$y)
+obs.H=cumsum(obs.h)
+obs.SURV=exp(-1*obs.H)
+correspond.pop=merge(sick,lifetable,by=c("sex","age"))
+correspond.pop[1:2,]
+ex.h=rep(NA,k)
+ex.h[1]=sum(correspond.pop$hazard)/y[1]
+for(i in 2:k)
+{
+  sickdata=sick
+  sickdata$age=sickdata$age+tindex[i-1]
+  correspond.pop=merge(sickdata,lifetable,by=c("sex","age"))
+  at.risk= correspond.pop[correspond.pop$time>tindex[i-1],]
+  ex.h[i]=sum(at.risk$hazard)/y[i]  
+}
+ex.H=cumsum(ex.h)
+ex.SURV=exp(-1*ex.H)
+relative.survival=obs.SURV/ex.SURV
+
+data.frame(tdcy,obs.H,ex.H,obs.SURV,ex.SURV,relative.survival)
+
+plot(tindex,relative.survival)
+
+
+
+SN.relative.surv=function(sick,lifetable)
+{
+  sick<-data.frame(sick)
+  lifetable<-data.frame(lifetable)
+  library(survival)
+  library(survMisc)
+  tendata=ten(Surv(sick$time, sick$cens),sick)
+  maxt=max(sick$time)
+  mint=min(sick$time)
+  tindex=c(mint:maxt)
+  k=length(tindex)
+  d=rep(NA,k)
+  for(i in 1:k)
+  {
+    d[i]=tendata[tendata$t==tindex[i],2]
+    d[d=="numeric(0)"]=0
+    d=cbind(d)
+  }
+  c=rep(NA,dim(tendata)[1])
+  for(i in 1:dim(tendata)[1]-1)
+  {
+    c[i]=tendata$n[i]-tendata$e[i]-tendata$n[i+1]
+    c[dim(tendata)[1]]=tendata$n[dim(tendata)[1]]-tendata$e[dim(tendata)[1]]
+  }
+  tencdata=cbind(tendata,c)
+  censor=rep(NA,k)
+  for(i in 1:k)
+  {
+    censor[i]=tencdata[tencdata$t==tindex[i],4]
+    censor[censor=="numeric(0)"]=0
+    censor=cbind(censor)
+  }
+  y=rep(NA,k)
+  y[1]=tencdata$n[1]
+  for(i in 2:k)
+  {
+    y[i]=as.numeric(y[i-1])-as.numeric(d[i-1])-as.numeric(censor[i-1])
+  }
+  tdcy = data.frame(tindex, d, censor, y)
+  obs.h=as.numeric(tdcy$d)/as.numeric(tdcy$y)
+  obs.H=cumsum(obs.h)
+  obs.SURV=exp(-1*obs.H)
+  ex.h=rep(NA,k)
+  correspond.pop=merge(sick,lifetable,by=c("sex","age"))
+  ex.h[1]=sum(correspond.pop$hazard)/y[1]
+  for(i in 2:k)
+  {
+    sickdata=sick
+    sickdata$age=sickdata$age+tindex[i-1]
+    correspond.pop=merge(sickdata,lifetable,by=c("sex","age"))
+    at.risk= correspond.pop[correspond.pop$time>tindex[i-1],]
+    ex.h[i]=sum(at.risk$hazard)/y[i]
+  }
+  ex.H=cumsum(ex.h)
+  ex.SURV=exp(-1*ex.H)
+  relative.survival=obs.SURV/ex.SURV
+  RS.data=data.frame(tdcy,obs.H,ex.H,obs.SURV,ex.SURV,relative.survival)
+  list(RS.data=RS.data)
+}
+
+
+library(readxl)
+yourlifetable <- read_excel("~/lifetable.xlsx")
+yoursick <- read_excel("~/sick.xlsx")
+
+result<-SN.relative.surv(sick=yoursick,lifetable=yourlifetable)
+result$RS.data
+plot(result$RS.data$tindex,result$RS.data$relative.survival)
+
+
+
+
+
+library(survival )
+library(splines )
+library(date )
+library(relsurv )
+
+
+ratetable.Australia<-transrate.hmd(male="~/mltper_1x1.txt",female ="~/fltper_1x1.txt" )
+is.ratetable(ratetable.Australia)
+mltper_1x1.txt<-read.table("~/mltper_1x1.txt",na.string=".",skip=2,header=TRUE,as.is=TRUE)
+fltper_1x1.txt<-read.table("~/fltper_1x1.txt",na.string=".",skip=2,header=TRUE,as.is=TRUE)
+is.ratetable(mltper_1x1.txt)
+is.ratetable(fltper_1x1.txt)
+
+data("rdata")
+rdata[1:3,]
+data("slopop")
+is.ratetable(slopop)
+fitadd.hakulinen <- rsadd(Surv(time,cens)~sex+as.factor(agegr)+ratetable(age=age*365.241,sex=sex,year=year), ratetable=slopop,data=rdata,int=5,method="glm.bin")
+summary(fitadd.hakulinen )
+fitadd.Poisson<- rsadd(Surv(time,cens)~sex+as.factor(agegr)+ratetable(age=age*365.241,sex=sex,year=year), ratetable=slopop,data=rdata,int=5,method="glm.poi")
+summary(fitadd.Poisson)
+fitadd.max.lik<- rsadd(Surv(time,cens)~sex+as.factor(agegr)+ratetable(age=age*365.241,sex=sex,year=year), ratetable=slopop,data=rdata,int=5,method="max.lik")
+summary(fitadd.max.lik)
+fit.mul <- rsmul(Surv(time,cens)~sex+as.factor(agegr)+ratetable(age=age*365.241,sex=sex,year=year),ratetable=slopop,data=rdata,int=5)
+summary(fit.mul)
+fit.trans <- rstrans(Surv(time,cens)~sex+as.factor(agegr)+ratetable(age=age*365.241,sex=sex,year=year),ratetable=slopop,data=rdata,int=5)
+summary(fit.trans)
