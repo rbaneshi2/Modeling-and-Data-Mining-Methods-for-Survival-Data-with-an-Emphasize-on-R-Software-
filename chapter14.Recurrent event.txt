@@ -1,0 +1,58 @@
+bladder.cp<-read.table(file ="~/bladder.dat.txt", header = TRUE)
+bladder.cp[8:15,]
+library(survival)
+bladder1[8:15,]
+library(mstate) 
+library(data.table) 
+data("ebmt4")
+attach(ebmt4) 
+datanew<- as.data.frame(cbind(id=as.factor(id), t1=rec,t2=srv,status1=rec.s,status2=srv.s, age=agecl, proph=proph, match=match))
+data_long<- melt(setDT(datanew), measure = patterns("^t", "^status"), value.name = c("Time", "Stause"), variable.name = "rep")
+data_long <- data_long[order(data_long$id, data_long$Time),]
+head(data_long)
+start<- c()
+for (i in 1: (nrow(data_long)/2))
+  { 
+  if(data_long$rep[(2*(i-1)+1)]==1){
+    start[(2*(i-1)+1)]<- 0 
+    }
+  if(data_long$rep[(2*(i-1)+2)]==2){ 
+    start[(2*(i-1)+2)]<- data_long$Time[(2*(i-1)+1)] 
+    } 
+}
+
+
+library(tidyselect)#call the packages for distinct function
+library(dplyr)
+data_long1<- cbind(data_long[,-c(5,6)],start,stop=data_long$Time) 
+data.final<- data_long1 %>% distinct(id, stop,.keep_all = TRUE) 
+head(data.final )
+
+library(survival)
+cpmodel<-coxph(Surv(START,STOP,EVENT)~TX+NUM+SIZE,data=bladder.cp)
+cpmodel
+
+cpmodel.robust<-coxph(Surv(START,STOP,EVENT)~TX+NUM+SIZE,data=bladder.cp,id=ID,robust = TRUE)
+cpmodel.robust
+Stratified.cpmodel.robust<-coxph(Surv(START,STOP,EVENT)~TX+SIZE+NUM+strata(INTERVAL),data=bladder.cp,id=ID,robust = TRUE)
+ Stratified.cpmodel.robust
+ 
+ Stratified.cpmodel1.robust<-coxph(Surv(START,STOP,EVENT)~TX*strata(INTERVAL)+SIZE*strata(INTERVAL)+NUM*strata(INTERVAL),data=bladder.cp,id=ID,robust = TRUE)
+ Stratified.cpmodel1.robust
+ PVALUE=1-pchisq(14.5-7.4,9)
+dim(bladder.cp)
+Stratified.GapTimemodel.robust<- coxph(Surv(rep(0,191),STOP-START,EVENT)~TX+SIZE+NUM+strata(INTERVAL),data=bladder.cp,id=ID,robust=TRUE)
+Stratified.GapTimemodel.robust
+library(survival)
+bladder[1:5,]
+
+bladder.margindata<-rbind(bladder ,c(341,86,1,1,1,0,0,1),c(342,86,1,1,1,0,0,2),c(343,86,1,1,1,0,0,3),c(344,86,1,1,1,0,0,4))
+bladder.margindata<-data.frame(bladder.margindata)
+bladder.margindata$tx<-ifelse(bladder.margindata$rx==1,0,1)
+
+bladder.margindata[1:6,]
+Stratified.marginmodel.robust<-coxph(Surv(stop,event)~tx+size+number+strata(enum),robust=TRUE,data=bladder.margindata)
+Stratified.marginmodel.robust
+coxsharefrailty.CP=coxph(Surv(START,STOP,EVENT)~TX+NUM+SIZE+frailty(ID,distribution="gamma"),data=bladder.cp)
+coxsharefrailty.CP
+1-pchisq(93.4-14.7,34-3)
